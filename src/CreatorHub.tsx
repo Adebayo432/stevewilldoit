@@ -117,6 +117,26 @@ function ScenePanel({
 }
 
 function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const homeHref = (section: string) =>
+    location.pathname === "/" ? `#${section}` : `/#${section}`;
+  const closeMenu = () => setMenuOpen(false);
+  const navigateToSection = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    section: string,
+  ) => {
+    closeMenu();
+    if (location.pathname !== "/") return;
+    event.preventDefault();
+    window.history.pushState(null, "", `#${section}`);
+    const target = document.getElementById(section);
+    if (!target) return;
+    const headerHeight = document.querySelector(".site-header")?.getBoundingClientRect().height ?? 0;
+    const targetTop = target.getBoundingClientRect().top + window.scrollY - headerHeight - 12;
+    window.scrollTo({ top: targetTop, behavior: "smooth" });
+  };
+
   return (
     <header className="site-header">
       <Link className="site-logo" to="/" aria-label="Steve Will Do It home">
@@ -127,14 +147,31 @@ function Header() {
           GAMDOM<span className="logo-subname"> × STEVE</span>
         </span>
       </Link>
-      <nav className="site-nav" aria-label="Main navigation">
-        <NavLink to="/gamdom">Gamdom</NavLink>
-        <NavLink to="/story">The legend</NavLink>
-        <NavLink to="/giveaways">Giveaways</NavLink>
-        <NavLink to="/colosseum">Colosseum</NavLink>
+      <button
+        className="menu-toggle"
+        type="button"
+        aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-expanded={menuOpen}
+        aria-controls="primary-navigation"
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <span />
+        <span />
+      </button>
+      <nav
+        className={`site-nav ${menuOpen ? "is-open" : ""}`}
+        id="primary-navigation"
+        aria-label="Main navigation"
+      >
+        <a href={homeHref("home")} onClick={(event) => navigateToSection(event, "home")}>Home</a>
+        <a href={homeHref("offer")} onClick={(event) => navigateToSection(event, "offer")}>The offer</a>
+        <a href={homeHref("giveaway-tracker")} onClick={(event) => navigateToSection(event, "giveaway-tracker")}>7% giveaways</a>
+        <a href={homeHref("games")} onClick={(event) => navigateToSection(event, "games")}>Games</a>
+        <a href={homeHref("community")} onClick={(event) => navigateToSection(event, "community")}>Community</a>
+        <NavLink to="/story" onClick={closeMenu}>Steve’s world</NavLink>
       </nav>
       <ExternalLink className="header-follow header-join" href={gamdomLink}>
-        <span className="join-code-label">Join with code </span>STEVE{" "}
+        <span className="join-code-label">PLAY ON GAMDOM · CODE </span>STEVE{" "}
         <span>↗</span>
       </ExternalLink>
     </header>
@@ -318,6 +355,66 @@ function HomePage() {
   );
 }
 
+function CopyCodeButton() {
+  const [copied, setCopied] = useState(false);
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText("STEVE");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      window.prompt("Copy Steve’s Gamdom code:", "STEVE");
+    }
+  };
+
+  return (
+    <button className={`copy-code-button ${copied ? "is-copied" : ""}`} onClick={copyCode} type="button">
+      {copied ? "Copied!" : "Copy code"}
+      <span aria-hidden="true">{copied ? "✓" : "▣"}</span>
+    </button>
+  );
+}
+
+function GiveawayCountdown() {
+  const [remaining, setRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const nextDrop = new Date(now);
+      const daysUntilFriday = (5 - now.getDay() + 7) % 7 || 7;
+      nextDrop.setDate(now.getDate() + daysUntilFriday);
+      nextDrop.setHours(18, 0, 0, 0);
+      const delta = Math.max(0, nextDrop.getTime() - now.getTime());
+      setRemaining({
+        days: Math.floor(delta / 86400000),
+        hours: Math.floor((delta / 3600000) % 24),
+        minutes: Math.floor((delta / 60000) % 60),
+        seconds: Math.floor((delta / 1000) % 60),
+      });
+    };
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="countdown" aria-label={`${remaining.days} days, ${remaining.hours} hours, ${remaining.minutes} minutes until the next estimated community drop window`}>
+      {([ ["days", remaining.days], ["hrs", remaining.hours], ["min", remaining.minutes], ["sec", remaining.seconds] ] as const).map(([label, value]) => (
+        <div className="countdown-unit" key={label}><strong>{String(value).padStart(2, "0")}</strong><span>{label}</span></div>
+      ))}
+    </div>
+  );
+}
+
+const campaignGames = [
+  { name: "Slots", code: "01", detail: "Spin into the lobby" },
+  { name: "Crash", code: "02", detail: "Pick your moment" },
+  { name: "Live Blackjack", code: "03", detail: "Take a seat" },
+  { name: "Roulette", code: "04", detail: "Round after round" },
+  { name: "High Roller", code: "05", detail: "VIP tables" },
+];
+
 function VideoDropzone() {
   return (
     <div className="video-upload-section" id="add-video">
@@ -337,26 +434,29 @@ function VideoDropzone() {
 function GamdomLanding() {
   return (
     <>
-      <section className="hero-section gamdom-hero">
+      <section className="hero-section gamdom-hero" id="home">
         <div className="hero-copy">
           <p className="eyebrow">
             <span />
             STEVE WILL DO IT × GAMDOM
           </p>
           <h1>
-            PLAY BIG.
+            PLAY LIKE STEVE
             <br />
-            <em>STAY SHARP.</em>
+            <em>ON GAMDOM.</em>
           </h1>
           <p className="hero-subtitle">The GAMDOMafia is calling.</p>
           <p className="hero-description">
-            Casino, sports, and live action. Bring your crew, find your game,
-            and keep it fun. Join through Steve’s link with code{" "}
-            <strong>STEVE</strong>.
+            Use code <strong>STEVE</strong> for the partnership offer, community
+            events, and a shot at Steve’s VIP perks. Check current eligibility
+            and terms on Gamdom before you play.
           </p>
           <div className="hero-actions">
             <ExternalLink className="button button-gold" href={gamdomLink}>
-              Join Gamdom <span>↗</span>
+              Claim Gamdom offer · STEVE <span>↗</span>
+            </ExternalLink>
+            <ExternalLink className="button button-quiet" href="https://kick.com/stevewilldoit">
+              Steve on Kick <span>↗</span>
             </ExternalLink>
           </div>
           <div className="hero-signoff">
@@ -381,30 +481,69 @@ function GamdomLanding() {
         </div>
       </section>
 
-      <section className="gamdom-benefits content-section">
-        <SectionTitle
-          kicker="Inside Gamdom"
-          text="A quick look at what’s in the mix. Check the current terms and availability on Gamdom."
-        >
-          Pick your lane.
-        </SectionTitle>
-        <div className="benefit-grid">
-          <article>
-            <span>01 / CASINO</span>
-            <h3>Tables & games</h3>
-            <p>Explore the casino lobby and choose what fits your session.</p>
-          </article>
-          <article>
-            <span>02 / SPORTS</span>
-            <h3>Live action</h3>
-            <p>Follow the matchups and markets you care about.</p>
-          </article>
-          <article>
-            <span>03 / COMMUNITY</span>
-            <h3>Bring your crew</h3>
-            <p>Make it social, keep it fun, and set your own limits.</p>
-          </article>
+      <section className="offer-section content-section" id="offer">
+        <div className="offer-copy">
+          <SectionTitle kicker="The Steve offer" text="Join through Steve’s referral link and enter the code during signup, where applicable.">Your code. Your crew.</SectionTitle>
+          <div className="promo-card">
+            <div><span className="promo-label">PROMO CODE</span><strong>STEVE</strong></div>
+            <CopyCodeButton />
+          </div>
+          <ExternalLink className="button button-gold" href={gamdomLink}>Play on Gamdom <span>↗</span></ExternalLink>
         </div>
+        <div className="offer-perks">
+          <p className="eyebrow"><span />PARTNERSHIP PERKS</p>
+          <article><span>01</span><div><strong>Rakeback boost</strong><small>15% instant boost* </small></div><b>↗</b></article>
+          <article><span>02</span><div><strong>Weekly raffles</strong><small>Community drops*</small></div><b>↗</b></article>
+          <article><span>03</span><div><strong>Exclusive tip-outs</strong><small>Eligibility and selection apply*</small></div><b>↗</b></article>
+          <small className="terms-note">*Offer details, availability, and eligibility must be confirmed in Gamdom’s current terms. No outcome is guaranteed.</small>
+        </div>
+      </section>
+
+      <section className="gamdom-benefits content-section" id="games">
+        <SectionTitle
+          kicker="Steve’s game room"
+          text="Explore the categories shown on Gamdom. Availability and game terms vary by location."
+        >
+          Steve’s favorite games.
+        </SectionTitle>
+        <div className="game-grid">
+          {campaignGames.map((game) => (
+            <ExternalLink className="game-card" href={gamdomLink} key={game.code}>
+              <span>{game.code} / GAMDOM</span><strong>{game.name}</strong><small>{game.detail}</small><b aria-hidden="true">↗</b>
+            </ExternalLink>
+          ))}
+        </div>
+      </section>
+
+      <section className="giveaway-section content-section" id="giveaway-tracker">
+        <div className="giveaway-heading">
+          <SectionTitle kicker="The 7% community promise" text="A campaign promise: 7% of Steve’s Gamdom withdrawals go back to the community, subject to the published giveaway terms.">When Steve cashes out,<br />the community gets love.</SectionTitle>
+          <div className="promise-stamp"><strong>7<span>%</span></strong><small>GIVE BACK</small></div>
+        </div>
+        <div className="tracker-grid">
+          <article><span>COMMUNITY GIVEAWAYS</span><strong>$7,500,000+</strong><small>Campaign figure · verify before publishing</small></article>
+          <article><span>CODE SIGNUPS</span><strong>11,000+</strong><small>Campaign figure · verify before publishing</small></article>
+          <article className="tracker-countdown"><span>NEXT COMMUNITY DROP WINDOW</span><GiveawayCountdown /><small>Estimated weekly countdown only; not a confirmed draw time.</small></article>
+        </div>
+        <p className="giveaway-disclaimer">Totals and scheduling are supplied campaign figures and should be confirmed against current official information. Giveaway eligibility and rules apply. 18+ only.</p>
+      </section>
+
+      <section className="steve-world-section content-section" id="steve-world">
+        <div className="steve-world-copy">
+          <SectionTitle kicker="Who is SteveWillDoIt?">Full-send energy.<br />Big-hearted moves.</SectionTitle>
+          <p>NELK Boys legend, viral challenge-maker, and a creator known for making every moment feel larger than life. From supercar surprises to huge community giveaways, Steve’s world is about going all in and bringing the crew along.</p>
+          <ExternalLink className="text-link" href="https://kick.com/stevewilldoit">Watch Steve on Kick <span>↗</span></ExternalLink>
+        </div>
+        <div className="moment-grid">
+          <article><span>CLASSIC MOMENT / 01</span><strong>Buying friends supercars</strong><small>Big reveal. Bigger reaction.</small></article>
+          <article><span>LIVE ENERGY / 02</span><strong>$100K+ slot hits on Kick</strong><small>High-stakes moments, live.</small></article>
+        </div>
+      </section>
+
+      <section className="kick-section content-section" id="community">
+        <div className="kick-live-mark"><span />KICK / STEVEWILLDOIT</div>
+        <div><p className="eyebrow"><span />LIVE & IN THE MIX</p><h2>Catch the next stream.</h2><p>Drop into Steve’s Kick channel for live sessions, big reactions, and community moments.</p></div>
+        <ExternalLink className="button button-live" href="https://kick.com/stevewilldoit">Open Steve’s Kick <span>↗</span></ExternalLink>
       </section>
 
       <section className="gamdom-video content-section" id="join-mob">
@@ -416,6 +555,14 @@ function GamdomLanding() {
         </div>
         <p className="gamdom-video-caption">One crew. One code. All gas.</p>
         <VideoDropzone />
+      </section>
+
+      <section className="vip-section content-section">
+        <SectionTitle kicker="VIP transfer & creator tip-outs" text="Ask Gamdom support whether your current Roobet or Stake VIP tier qualifies for a match. Approval, requirements, and availability are determined by Gamdom.">Bring your status.<br />Meet the crew.</SectionTitle>
+        <div className="vip-grid">
+          <article><span>HIGH ROLLERS</span><h3>Ask about a VIP match.</h3><p>Coming from Roobet or Stake? Contact Gamdom support with proof of your current VIP tier and ask whether a match is available. Approval and requirements are decided by Gamdom.</p><ExternalLink className="text-link" href={gamdomLink}>Ask Gamdom support <span>↗</span></ExternalLink></article>
+          <CreatorApplication />
+        </div>
       </section>
 
       <section className="brands-section content-section gamdom-brands">
@@ -440,6 +587,30 @@ function GamdomLanding() {
         </small>
       </section>
     </>
+  );
+}
+
+function CreatorApplication() {
+  const submitApplication = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const subject = encodeURIComponent("Creator tip-out application · Code STEVE");
+    const body = encodeURIComponent(`Name: ${form.get("creatorName")}\nChannel: ${form.get("creatorChannel")}\nAudience: ${form.get("creatorAudience")}\n\nPlease share your content and campaign details.`);
+    window.location.href = `mailto:business@stevewilldoit.com?subject=${subject}&body=${body}`;
+  };
+
+  return (
+    <article className="creator-apply-card">
+      <span>SMALLER CREATORS</span><h3>Make something worth sharing.</h3>
+      <p>Send your channel and audience details to ask about a creator tip-out. Selection and availability apply.</p>
+      <form onSubmit={submitApplication}>
+        <label>Name<input name="creatorName" autoComplete="name" required /></label>
+        <label>Channel link<input name="creatorChannel" type="url" placeholder="https://" required /></label>
+        <label>Audience size<input name="creatorAudience" inputMode="numeric" /></label>
+        <button className="button button-gold" type="submit">Prepare application <span>↗</span></button>
+      </form>
+      <small className="terms-note">Opens your email app; no data is sent by this page.</small>
+    </article>
   );
 }
 
